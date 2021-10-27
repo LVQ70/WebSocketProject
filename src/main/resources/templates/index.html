@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.springframework.org/schema/mvc">
+<head>
+    <meta charset="UTF-8">
+    <title>首页</title>
+</head>
+<style>
+    body{text-align:center}
+    #chatList{
+        margin-left: 10%;
+        width: 80%;
+        height: 500px;
+        overflow-y: auto;
+        background-color: #ffeea2;
+    }
+    #left_msg{
+        margin: 10px;
+        width: auto;
+        background-color: #00ff8b;
+        padding: 5px;
+        border-radius:5px 0px 5px 5px;
+    }
+    #right_msg{
+        margin: 10px;
+        width: auto;
+        background-color: #f7fcff;
+        padding: 5px;
+        border-radius:0px 5px 5px 5px;
+    }
+    #contentValue{
+        font-size: 22px;
+        margin-top: 10px;
+        width: 30%;
+        line-height: 35px;
+        border: 3px solid #71e4ff;
+    }
+    #sendBtn{
+        line-height: 35px;
+        border: none;
+        background-color: #2e8aff;
+        color: #ffffff;
+        font-size: 23px;
+        padding: 5px 10px 5px 10px;
+    }
+    #closeBtn{
+        line-height: 25px;
+        border: none;
+        margin-left: 10px;
+        background-color: #ff1026;
+        color: #ffffff;
+        font-size: 12px;
+        padding: 5px 10px 5px 10px;
+    }
+</style>
+<body>
+    <div id="chatList"></div>
+    <div>
+        <input id="contentValue"/>
+        <button id="sendBtn">发送</button>
+        <button id="closeBtn" onclick="closeWebSocket()">关闭WebSocket连接</button>
+    </div>
+</body>
+<script th:src="@{/js/jquery.js}"></script>
+<script>
+    var name = prompt("请输入姓名","");
+
+    $("#sendBtn").click(function () {
+        var content = $("#contentValue").val();
+        send(content);
+    });
+
+    var websocket = null;
+    //判断当前浏览器是否支持WebSocket
+    if ('WebSocket' in window) {
+        var f = false;
+        var count = 0;
+        //定时器判断用户是否登录
+        setInterval(function(){
+            if(name.length==0||name == null||name=="null"){
+                name = prompt("请输入姓名","");
+            }else{
+                f = true;
+            }
+            if(f&&count==0){
+                websocket = new WebSocket("ws://192.168.2.16:80/websocket/"+name+"/1");
+                //连接发生错误的回调方法
+                websocket.onerror = function () {
+                    setMessageInnerHTML("null:WebSocket连接发生错误");
+                };
+
+                //连接成功建立的回调方法
+                websocket.onopen = function () {
+                    setMessageInnerHTML("null:WebSocket连接成功");
+                }
+
+                //接收到消息的回调方法
+                websocket.onmessage = function (event) {
+                    setMessageInnerHTML(event.data);
+                }
+
+                //连接关闭的回调方法
+                websocket.onclose = function () {
+                    setMessageInnerHTML("null:WebSocket连接关闭");
+                }
+
+                count++;
+            }
+        },1000);
+    }else {
+        alert('当前浏览器 Not support websocket')
+    }
+
+    //监听窗口关闭事件，当窗口关闭时，主动去关闭websocket连接，防止连接还没断开就关闭窗口，server端会抛异常。
+    window.onbeforeunload = function () {
+        closeWebSocket();
+    }
+
+    //将消息显示在网页上
+    function setMessageInnerHTML(innerHTML) {
+        var web_name = innerHTML.split(":")[0];
+        if(web_name == null || web_name == "null"){
+            MsgInsertHtml(2,innerHTML.split(":")[1],web_name);
+        }else{
+            if(name == web_name){
+                MsgInsertHtml(1,innerHTML.split(":")[1],web_name);
+            }else{
+                MsgInsertHtml(0,innerHTML.split(":")[1],web_name);
+            }
+            add();
+        }
+    }
+
+    //关闭WebSocket连接
+    function closeWebSocket() {
+        websocket.close();
+    }
+
+    //发送消息
+    function send(message) {
+        websocket.send(message);
+    }
+
+    //消息展示设置
+    function MsgInsertHtml(type,msg,name) {
+        if(type == 0){
+            var left_html ='<div style="text-align: left;margin:0px 10px 20px 10px;">'+name+'<span id="right_msg">'+msg+'</span></div>';
+            document.getElementById('chatList').innerHTML += left_html;
+        }else if(type == 2){
+            var null_html ='<div style="text-align: center;margin:0px 10px 20px 10px;font-size: 16px;color: #b1b1b1;"><span>'+msg+'</span></div>';
+            document.getElementById('chatList').innerHTML += null_html;
+        }else{
+            var right_html = '<div style="text-align: right;margin: 0px 10px 20px 10px;"><span id="left_msg">'+msg+'</span>'+name+'</div>';
+            document.getElementById('chatList').innerHTML += right_html;
+        }
+    }
+
+    //滚动条自动移动到最后
+    function add()
+    {
+        var div = document.getElementById('chatList');
+        div.scrollTop = div.scrollHeight;
+    }
+</script>
+</html>
